@@ -1,73 +1,36 @@
 --[[
     ═══════════════════════════════════════════════════════════════════════════
-    Jhzinn SISTEMA DOORS v5.0  [EDIÇÃO ELITE]
-    Hotel · Minas · Arquivos · Porta dos Fundos · Escadaria
-    ESP Itens · Notificação Direita · Som · Auto-Interação · Anti-Ban
+    Jhzinn SISTEMA DOORS v6.0  [BOOT BLINDADO]
+    Hotel · Minas · Arquivos · Porta dos Fundos
+    UI primeiro · AntiBan isolado · ESP · Notificações na direita
     ═══════════════════════════════════════════════════════════════════════════
 --]]
 
-if _G.JhzinnCarregado then
+print("[Jhzinn] v6.0 iniciando...")
+
+-- Remove instância anterior
+if _G.JhzinnUI then
     pcall(function() _G.JhzinnUI:Destroy() end)
+    _G.JhzinnUI = nil
 end
 _G.JhzinnCarregado = true
 
 --========================= SERVIÇOS =========================
-local Jogadores         = game:GetService("Players")
-local Renderizacao      = game:GetService("RunService")
-local EntradaUsuario    = game:GetService("UserInputService")
-local ServicoTween      = game:GetService("TweenService")
-local EspacoTrabalho    = game:GetService("Workspace")
-local ArmazenamentoRep  = game:GetService("ReplicatedStorage")
-local StarterGui        = game:GetService("StarterGui")
-local ServicoSom        = game:GetService("SoundService")
+local Jogadores      = game:GetService("Players")
+local Renderizacao   = game:GetService("RunService")
+local TweenService   = game:GetService("TweenService")
+local EspacoTrabalho = game:GetService("Workspace")
+local Armazenamento  = game:GetService("ReplicatedStorage")
+local StarterGui     = game:GetService("StarterGui")
+local ServicoSom     = game:GetService("SoundService")
 
 local JogadorLocal = Jogadores.LocalPlayer
 local Camera       = EspacoTrabalho.CurrentCamera
 local InterfaceJog = JogadorLocal:WaitForChild("PlayerGui")
 
---========================= ANTI-BAN (INICIALIZAÇÃO) =========================
-local AntiBan = { Ativo = true, Recursos = {
-    hookmetamethod = type(hookmetamethod) == "function",
-    hookfunction   = type(hookfunction) == "function",
-    gethwid        = type(gethwid) == "function",
-    getgc          = type(getgc) == "function",
-    checkcaller    = type(checkcaller) == "function",
-    newcclosure    = type(newcclosure) == "function",
-} }
+print("[Jhzinn] Serviços carregados. Criando UI...")
 
-if AntiBan.Recursos.hookmetamethod and AntiBan.Recursos.newcclosure then
-    pcall(function()
-        local mt = getrawmetatable(game)
-        local antigo = mt.__namecall
-        setreadonly(mt, false)
-        mt.__namecall = newcclosure(function(self, ...)
-            local metodo = getnamecallmethod()
-            if metodo == "Kick" and AntiBan.Ativo then
-                warn("[Jhzinn] Kick bloqueado"); return
-            end
-            if metodo == "FireServer" and AntiBan.Ativo then
-                local nome = string.lower(tostring(self))
-                if nome:find("ban") or nome:find("kick")
-                   or nome:find("anticheat") or nome:find("detect")
-                   or nome:find("report") then
-                    warn("[Jhzinn] Remote bloqueado: "..tostring(self)); return
-                end
-            end
-            return antigo(self, ...)
-        end)
-        setreadonly(mt, true)
-    end)
-end
-
-if AntiBan.Recursos.hookfunction and AntiBan.Recursos.gethwid then
-    pcall(function()
-        hookfunction(gethwid, function()
-            return "Jhzinn-Falso-"..tostring(math.random(1e5,1e6))
-        end)
-    end)
-end
-
---========================= CONFIGURAÇÕES =========================
+--========================= CORES =========================
 local C = {
     Nome       = "Jhzinn",
     Roxo       = Color3.fromRGB(88, 28, 135),
@@ -87,49 +50,421 @@ local C = {
 }
 
 local Opcoes = {
-    Portas=true, PortaVerdadeira=true, PortaFalsa=true,
-    PortasTrancadas=true,
+    Portas=true, PortaVerdadeira=true, PortaFalsa=true, PortasTrancadas=true,
     Entidades=true, Itens=true, Objetivos=true,
-    Esconderijos=true, Armadilhas=true, Geradores=true,
-    Alavancas=true, Distancias=true, Numeros=true,
+    Esconderijos=true, Armadilhas=true, Geradores=true, Alavancas=true,
     Minas=true, Arquivos=true, PortaFundos=true,
-    ESP=true, Depurar=false,
-    AutoInteracao=false,
-    SomAlerta=true,
-    AntiKick=true, AntiBanRemoto=true, FalsoHWID=true,
-    AntiDeteccao=true, ModoSeguro=true,
+    ESP=true,
+    AutoInteracao=false, SomAlerta=true,
 }
 
---========================= GERENCIADOR DE DESTAQUES =========================
+--========================= UI PRIMEIRO (BOOT BLINDADO) =========================
+
+local UI = { Paginas = {}, Pronto = false }
+
+local function criarUI()
+    local sg = Instance.new("ScreenGui")
+    sg.Name = "JhzinnUI"
+    sg.ResetOnSpawn = false
+    sg.Enabled = true
+    sg.DisplayOrder = 2147483647
+    sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    sg.Parent = InterfaceJog
+    _G.JhzinnUI = sg
+
+    -- JANELA PRINCIPAL
+    local janela = Instance.new("Frame")
+    janela.Name = "Janela"
+    janela.Size = UDim2.new(0, 500, 0, 560)
+    janela.Position = UDim2.new(0.5, -250, 0.5, -280)
+    janela.BackgroundColor3 = C.Roxo
+    janela.BorderSizePixel = 0
+    janela.Active = true
+    janela.Draggable = true
+    janela.Visible = true
+    janela.ZIndex = 2
+    janela.Parent = sg
+
+    local grad = Instance.new("UIGradient", janela)
+    grad.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, C.Roxo),
+        ColorSequenceKeypoint.new(1, C.RoxoEscuro),
+    }
+    grad.Rotation = 135
+
+    local cantos = Instance.new("UICorner", janela)
+    cantos.CornerRadius = UDim.new(0, 16)
+
+    local contorno = Instance.new("UIStroke", janela)
+    contorno.Color = C.RoxoClaro
+    contorno.Thickness = 2
+    contorno.Transparency = 0.15
+
+    -- BARRA DO TOPO
+    local barraTopo = Instance.new("Frame")
+    barraTopo.Size = UDim2.new(1, 0, 0, 44)
+    barraTopo.BackgroundColor3 = C.RoxoEscuro
+    barraTopo.BorderSizePixel = 0
+    barraTopo.ZIndex = 3
+    barraTopo.Parent = janela
+    Instance.new("UICorner", barraTopo).CornerRadius = UDim.new(0, 16)
+
+    local titulo = Instance.new("TextLabel")
+    titulo.Size = UDim2.new(1, -220, 1, 0)
+    titulo.Position = UDim2.new(0, 14, 0, 0)
+    titulo.BackgroundTransparency = 1
+    titulo.Text = "🚪 Jhzinn SISTEMA DOORS v6.0"
+    titulo.TextColor3 = C.Texto
+    titulo.Font = Enum.Font.GothamBold
+    titulo.TextSize = 15
+    titulo.TextXAlignment = Enum.TextXAlignment.Left
+    titulo.ZIndex = 4
+    titulo.Parent = barraTopo
+
+    local marca = Instance.new("TextLabel")
+    marca.Size = UDim2.new(0, 90, 0, 20)
+    marca.Position = UDim2.new(1, -220, 0, 12)
+    marca.BackgroundTransparency = 1
+    marca.Text = C.Nome
+    marca.TextColor3 = C.RoxoClaro
+    marca.Font = Enum.Font.GothamBold
+    marca.TextSize = 13
+    marca.TextXAlignment = Enum.TextXAlignment.Right
+    marca.ZIndex = 4
+    marca.Parent = barraTopo
+
+    -- BOTÃO MINIMIZAR
+    local btnMin = Instance.new("TextButton")
+    btnMin.Size = UDim2.new(0, 30, 0, 30)
+    btnMin.Position = UDim2.new(1, -74, 0, 7)
+    btnMin.BackgroundColor3 = C.RoxoClaro
+    btnMin.Text = "−"
+    btnMin.TextColor3 = C.Texto
+    btnMin.Font = Enum.Font.GothamBold
+    btnMin.TextSize = 22
+    btnMin.BorderSizePixel = 0
+    btnMin.ZIndex = 5
+    btnMin.Parent = barraTopo
+    Instance.new("UICorner", btnMin).CornerRadius = UDim.new(0, 8)
+
+    -- BOTÃO FECHAR
+    local btnX = Instance.new("TextButton")
+    btnX.Size = UDim2.new(0, 30, 0, 30)
+    btnX.Position = UDim2.new(1, -40, 0, 7)
+    btnX.BackgroundColor3 = Color3.fromRGB(210, 40, 60)
+    btnX.Text = "X"
+    btnX.TextColor3 = C.Texto
+    btnX.Font = Enum.Font.GothamBold
+    btnX.TextSize = 15
+    btnX.BorderSizePixel = 0
+    btnX.ZIndex = 5
+    btnX.Parent = barraTopo
+    Instance.new("UICorner", btnX).CornerRadius = UDim.new(0, 8)
+
+    -- CORPO
+    local corpo = Instance.new("Frame")
+    corpo.Size = UDim2.new(1, -20, 1, -56)
+    corpo.Position = UDim2.new(0, 10, 0, 50)
+    corpo.BackgroundTransparency = 1
+    corpo.ZIndex = 3
+    corpo.Parent = janela
+
+    -- ABAS
+    local barraAbas = Instance.new("Frame")
+    barraAbas.Size = UDim2.new(1, 0, 0, 32)
+    barraAbas.BackgroundColor3 = C.RoxoEscuro
+    barraAbas.BorderSizePixel = 0
+    barraAbas.ZIndex = 4
+    barraAbas.Parent = corpo
+    Instance.new("UICorner", barraAbas).CornerRadius = UDim.new(0, 8)
+
+    local layoutAbas = Instance.new("UIListLayout", barraAbas)
+    layoutAbas.FillDirection = Enum.FillDirection.Horizontal
+    layoutAbas.Padding = UDim.new(0, 3)
+    layoutAbas.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layoutAbas.VerticalAlignment = Enum.VerticalAlignment.Center
+
+    local paginas = Instance.new("Frame")
+    paginas.Size = UDim2.new(1, 0, 1, -40)
+    paginas.Position = UDim2.new(0, 0, 0, 40)
+    paginas.BackgroundTransparency = 1
+    paginas.ZIndex = 3
+    paginas.Parent = corpo
+
+    local function criarAba(nome, largura)
+        local pg = Instance.new("ScrollingFrame")
+        pg.Size = UDim2.new(1, 0, 1, 0)
+        pg.BackgroundTransparency = 1
+        pg.BorderSizePixel = 0
+        pg.ScrollBarThickness = 4
+        pg.ScrollBarImageColor3 = C.RoxoClaro
+        pg.CanvasSize = UDim2.new(0, 0, 0, 0)
+        pg.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        pg.Visible = false
+        pg.ZIndex = 4
+        pg.Parent = paginas
+
+        local l = Instance.new("UIListLayout", pg)
+        l.SortOrder = Enum.SortOrder.LayoutOrder
+        l.Padding = UDim.new(0, 6)
+
+        UI.Paginas[nome] = pg
+
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0, largura or 78, 0, 24)
+        btn.BackgroundColor3 = C.Roxo
+        btn.Text = nome
+        btn.TextColor3 = C.Texto
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 10
+        btn.BorderSizePixel = 0
+        btn.ZIndex = 5
+        btn.Parent = barraAbas
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+
+        btn.MouseButton1Click:Connect(function()
+            for _, p in pairs(UI.Paginas) do p.Visible = false end
+            pg.Visible = true
+        end)
+
+        return pg
+    end
+
+    -- ABA STATUS
+    local pgStatus = criarAba("STATUS", 60)
+
+    local function criarLinha(parent, chave)
+        local f = Instance.new("Frame")
+        f.Size = UDim2.new(1, 0, 0, 26)
+        f.BackgroundColor3 = C.RoxoEscuro
+        f.BorderSizePixel = 0
+        f.ZIndex = 5
+        f.Parent = parent
+        Instance.new("UICorner", f).CornerRadius = UDim.new(0, 6)
+
+        local k = Instance.new("TextLabel")
+        k.Size = UDim2.new(0.5, -8, 1, 0)
+        k.Position = UDim2.new(0, 10, 0, 0)
+        k.BackgroundTransparency = 1
+        k.Text = chave
+        k.TextColor3 = C.Apagado
+        k.Font = Enum.Font.Gotham
+        k.TextSize = 12
+        k.TextXAlignment = Enum.TextXAlignment.Left
+        k.ZIndex = 6
+        k.Parent = f
+
+        local v = Instance.new("TextLabel")
+        v.Size = UDim2.new(0.5, -8, 1, 0)
+        v.Position = UDim2.new(0.5, 0, 0, 0)
+        v.BackgroundTransparency = 1
+        v.Text = "-"
+        v.TextColor3 = C.Texto
+        v.Font = Enum.Font.GothamBold
+        v.TextSize = 12
+        v.TextXAlignment = Enum.TextXAlignment.Right
+        v.ZIndex = 6
+        v.Parent = f
+
+        return v
+    end
+
+    UI.lblAndar = criarLinha(pgStatus, "ANDAR")
+    UI.lblSala  = criarLinha(pgStatus, "SALA")
+    UI.lblProx  = criarLinha(pgStatus, "PRÓXIMA PORTA")
+    UI.lblEnt   = criarLinha(pgStatus, "ENTIDADE ATIVA")
+    UI.lblAnti  = criarLinha(pgStatus, "ANTI-BAN")
+    UI.lblAuto  = criarLinha(pgStatus, "AUTO-INTERAÇÃO")
+
+    -- ABA OPÇÕES
+    local pgOpcoes = criarAba("OPÇÕES", 70)
+
+    local function criarToggle(nome, chave)
+        local f = Instance.new("Frame")
+        f.Size = UDim2.new(1, 0, 0, 28)
+        f.BackgroundColor3 = C.RoxoEscuro
+        f.BorderSizePixel = 0
+        f.ZIndex = 5
+        f.Parent = pgOpcoes
+        Instance.new("UICorner", f).CornerRadius = UDim.new(0, 6)
+
+        local l = Instance.new("TextLabel")
+        l.Size = UDim2.new(0.7, 0, 1, 0)
+        l.Position = UDim2.new(0, 12, 0, 0)
+        l.BackgroundTransparency = 1
+        l.Text = nome
+        l.TextColor3 = C.Texto
+        l.Font = Enum.Font.Gotham
+        l.TextSize = 12
+        l.TextXAlignment = Enum.TextXAlignment.Left
+        l.ZIndex = 6
+        l.Parent = f
+
+        local b = Instance.new("TextButton")
+        b.Size = UDim2.new(0, 56, 0, 20)
+        b.Position = UDim2.new(1, -66, 0, 4)
+        b.BackgroundColor3 = Opcoes[chave] and C.Verde or Color3.fromRGB(120,120,140)
+        b.Text = Opcoes[chave] and "LIG" or "DES"
+        b.TextColor3 = C.Texto
+        b.Font = Enum.Font.GothamBold
+        b.TextSize = 11
+        b.BorderSizePixel = 0
+        b.ZIndex = 6
+        b.Parent = f
+        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+
+        b.MouseButton1Click:Connect(function()
+            Opcoes[chave] = not Opcoes[chave]
+            b.Text = Opcoes[chave] and "LIG" or "DES"
+            b.BackgroundColor3 = Opcoes[chave] and C.Verde or Color3.fromRGB(120,120,140)
+        end)
+    end
+
+    criarToggle("Portas","Portas")
+    criarToggle("Porta Verdadeira","PortaVerdadeira")
+    criarToggle("Porta Falsa","PortaFalsa")
+    criarToggle("Portas Trancadas","PortasTrancadas")
+    criarToggle("Entidades","Entidades")
+    criarToggle("Itens","Itens")
+    criarToggle("Objetivos","Objetivos")
+    criarToggle("Esconderijos","Esconderijos")
+    criarToggle("Armadilhas","Armadilhas")
+    criarToggle("Geradores","Geradores")
+    criarToggle("Alavancas","Alavancas")
+    criarToggle("As Minas","Minas")
+    criarToggle("Os Arquivos","Arquivos")
+    criarToggle("Porta dos Fundos","PortaFundos")
+    criarToggle("ESP","ESP")
+
+    -- ABA AUTO
+    local pgAuto = criarAba("AUTO", 60)
+    criarToggle("Auto-Interação","AutoInteracao")
+    criarToggle("Som de Alerta","SomAlerta")
+
+    -- ABA LOGS
+    local pgLogs = criarAba("LOGS", 60)
+    UI.PainelLogs = pgLogs
+
+    -- Ativa primeira aba
+    pgStatus.Visible = true
+
+    -- BOTÃO FLUTUANTE
+    local flutuante = Instance.new("TextButton")
+    flutuante.Size = UDim2.new(0, 62, 0, 62)
+    flutuante.Position = UDim2.new(0, 24, 0.5, -31)
+    flutuante.BackgroundColor3 = C.Roxo
+    flutuante.Text = "J"
+    flutuante.TextColor3 = C.Texto
+    flutuante.Font = Enum.Font.GothamBold
+    flutuante.TextSize = 26
+    flutuante.BorderSizePixel = 0
+    flutuante.Visible = false
+    flutuante.Active = true
+    flutuante.Draggable = true
+    flutuante.ZIndex = 10
+    flutuante.Parent = sg
+    Instance.new("UICorner", flutuante).CornerRadius = UDim.new(1, 0)
+    local contFlut = Instance.new("UIStroke", flutuante)
+    contFlut.Color = C.RoxoClaro
+    contFlut.Thickness = 2
+
+    -- EVENTOS BOTÕES
+    btnMin.MouseButton1Click:Connect(function()
+        janela.Visible = false
+        flutuante.Visible = true
+    end)
+
+    flutuante.MouseButton1Click:Connect(function()
+        janela.Visible = true
+        flutuante.Visible = false
+    end)
+
+    btnX.MouseButton1Click:Connect(function()
+        sg:Destroy()
+        _G.JhzinnUI = nil
+    end)
+
+    UI.Janela = janela
+    UI.Pronto = true
+    return true
+end
+
+-- CHAMA A CRIAÇÃO DA UI
+local okUI, errUI = pcall(criarUI)
+if not okUI then
+    warn("[Jhzinn] ❌ Erro ao criar UI:", errUI)
+    return
+end
+
+print("[Jhzinn] ✅ UI criada com sucesso!")
+
+--========================= FUNÇÃO DE LOG =========================
+function UI:Registrar(texto, cor)
+    if not self.PainelLogs then return end
+    local rot = Instance.new("TextLabel")
+    rot.Size = UDim2.new(1, 0, 0, 16)
+    rot.BackgroundTransparency = 1
+    rot.Text = "["..os.date("%H:%M:%S").."] "..texto
+    rot.TextColor3 = cor or C.Apagado
+    rot.Font = Enum.Font.Code
+    rot.TextSize = 11
+    rot.TextXAlignment = Enum.TextXAlignment.Left
+    rot.ZIndex = 6
+    rot.Parent = self.PainelLogs
+
+    local filhos = self.PainelLogs:GetChildren()
+    local n = 0
+    for _, f in ipairs(filhos) do
+        if f:IsA("TextLabel") then n = n + 1 end
+    end
+    if n > 80 then
+        for _, f in ipairs(filhos) do
+            if f:IsA("TextLabel") then f:Destroy(); break end
+        end
+    end
+end
+
+UI:Registrar("SISTEMA v6.0 iniciado", C.RoxoClaro)
+UI:Registrar("UI carregada com sucesso", C.Verde)
+
+--========================= HIGHLIGHT MANAGER =========================
 local GerDestaque = { Cache = {}, Avisos = {} }
-_G.JhzinnGerDestaque = GerDestaque
 
 function GerDestaque:Aplicar(obj, cor, texto)
-    if not obj then return end
+    if not obj or not obj.Parent then return end
     if self.Cache[obj] then self.Cache[obj]:Destroy() end
     if self.Avisos[obj] then self.Avisos[obj]:Destroy() end
 
-    local destaque = Instance.new("Highlight")
-    destaque.FillColor = cor; destaque.OutlineColor = cor
-    destaque.FillTransparency = 0.55; destaque.OutlineTransparency = 0
-    destaque.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    destaque.Adornee = obj; destaque.Parent = obj
-    self.Cache[obj] = destaque
+    local hl = Instance.new("Highlight")
+    hl.FillColor = cor
+    hl.OutlineColor = cor
+    hl.FillTransparency = 0.55
+    hl.OutlineTransparency = 0
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    hl.Adornee = obj
+    hl.Parent = obj
+    self.Cache[obj] = hl
 
     if texto then
-        local aviso = Instance.new("BillboardGui")
-        aviso.Size = UDim2.new(0, 200, 0, 40)
-        aviso.StudsOffset = Vector3.new(0, 4, 0)
-        aviso.AlwaysOnTop = true; aviso.Adornee = obj; aviso.Parent = obj
-        local rotulo = Instance.new("TextLabel")
-        rotulo.Size = UDim2.new(1, 0, 1, 0)
-        rotulo.BackgroundTransparency = 1
-        rotulo.Text = texto; rotulo.TextColor3 = cor
-        rotulo.TextStrokeTransparency = 0.2
-        rotulo.TextStrokeColor3 = Color3.new(0,0,0)
-        rotulo.Font = Enum.Font.GothamBold; rotulo.TextSize = 13
-        rotulo.TextWrapped = true; rotulo.Parent = aviso
-        self.Avisos[obj] = aviso
+        local bb = Instance.new("BillboardGui")
+        bb.Size = UDim2.new(0, 200, 0, 40)
+        bb.StudsOffset = Vector3.new(0, 4, 0)
+        bb.AlwaysOnTop = true
+        bb.Adornee = obj
+        bb.Parent = obj
+
+        local lbl = Instance.new("TextLabel")
+        lbl.Size = UDim2.new(1, 0, 1, 0)
+        lbl.BackgroundTransparency = 1
+        lbl.Text = texto
+        lbl.TextColor3 = cor
+        lbl.TextStrokeTransparency = 0.2
+        lbl.TextStrokeColor3 = Color3.new(0,0,0)
+        lbl.Font = Enum.Font.GothamBold
+        lbl.TextSize = 13
+        lbl.TextWrapped = true
+        lbl.Parent = bb
+        self.Avisos[obj] = bb
     end
 end
 
@@ -139,18 +474,13 @@ function GerDestaque:Limpar(obj)
 end
 
 function GerDestaque:LimparTudo()
-    for _,v in pairs(self.Cache) do v:Destroy() end
-    for _,v in pairs(self.Avisos) do v:Destroy() end
-    self.Cache={}; self.Avisos={}
+    for _, v in pairs(self.Cache) do v:Destroy() end
+    for _, v in pairs(self.Avisos) do v:Destroy() end
+    self.Cache = {}
+    self.Avisos = {}
 end
 
-local function distancia(obj)
-    if not obj or not Camera then return 0 end
-    local pos = obj:IsA("Model") and obj:GetPivot().Position or obj.Position
-    return math.floor((Camera.CFrame.Position - pos).Magnitude)
-end
-
---========================= GERENCIADOR DE SOM =========================
+--========================= SOM =========================
 local GerSom = {}
 do
     local som = Instance.new("Sound")
@@ -177,11 +507,14 @@ do
     suporte.Size = UDim2.new(0, 260, 1, -40)
     suporte.Position = UDim2.new(1, -272, 0, 20)
     suporte.BackgroundTransparency = 1
-    suporte.Parent = InterfaceJog
+    suporte.ZIndex = 9999
+    suporte.Parent = _G.JhzinnUI
+
     local layout = Instance.new("UIListLayout", suporte)
     layout.SortOrder = Enum.SortOrder.LayoutOrder
     layout.VerticalAlignment = Enum.VerticalAlignment.Top
     layout.Padding = UDim.new(0, 6)
+
     GerNotificacao.Suporte = suporte
 end
 
@@ -191,37 +524,39 @@ function GerNotificacao:Enviar(titulo, cor)
     quadro.BackgroundColor3 = C.RoxoEscuro
     quadro.BackgroundTransparency = 0.1
     quadro.BorderSizePixel = 0
+    quadro.ZIndex = 10000
     quadro.Parent = self.Suporte
     Instance.new("UICorner", quadro).CornerRadius = UDim.new(0, 10)
-    local contorno = Instance.new("UIStroke", quadro)
-    contorno.Color = cor; contorno.Thickness = 2
+
+    local cont = Instance.new("UIStroke", quadro)
+    cont.Color = cor
+    cont.Thickness = 2
 
     local barra = Instance.new("Frame")
     barra.Size = UDim2.new(0, 5, 1, -8)
     barra.Position = UDim2.new(0, 4, 0, 4)
     barra.BackgroundColor3 = cor
     barra.BorderSizePixel = 0
+    barra.ZIndex = 10001
     barra.Parent = quadro
     Instance.new("UICorner", barra).CornerRadius = UDim.new(0, 3)
 
-    local rotulo = Instance.new("TextLabel")
-    rotulo.Size = UDim2.new(1, -20, 1, 0)
-    rotulo.Position = UDim2.new(0, 16, 0, 0)
-    rotulo.BackgroundTransparency = 1
-    rotulo.Text = titulo
-    rotulo.TextColor3 = C.Texto
-    rotulo.Font = Enum.Font.GothamBold
-    rotulo.TextSize = 14
-    rotulo.TextXAlignment = Enum.TextXAlignment.Left
-    rotulo.Parent = quadro
-
-    quadro.BackgroundTransparency = 1
-    ServicoTween:Create(quadro, TweenInfo.new(0.2), {BackgroundTransparency = 0.1}):Play()
+    local rot = Instance.new("TextLabel")
+    rot.Size = UDim2.new(1, -20, 1, 0)
+    rot.Position = UDim2.new(0, 16, 0, 0)
+    rot.BackgroundTransparency = 1
+    rot.Text = titulo
+    rot.TextColor3 = C.Texto
+    rot.Font = Enum.Font.GothamBold
+    rot.TextSize = 14
+    rot.TextXAlignment = Enum.TextXAlignment.Left
+    rot.ZIndex = 10001
+    rot.Parent = quadro
 
     table.insert(self.Quadros, quadro)
     task.delay(4, function()
         if quadro and quadro.Parent then
-            ServicoTween:Create(quadro, TweenInfo.new(0.3), {
+            TweenService:Create(quadro, TweenInfo.new(0.3), {
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 0)
             }):Play()
@@ -231,15 +566,16 @@ function GerNotificacao:Enviar(titulo, cor)
     end)
 
     if #self.Quadros > 6 then
-        local antigo = table.remove(self.Quadros, 1)
-        if antigo then antigo:Destroy() end
+        local velho = table.remove(self.Quadros, 1)
+        if velho then velho:Destroy() end
     end
 end
 
---========================= DETECÇÃO DE ANDAR =========================
+--========================= DETECTOR DE ANDAR =========================
 local DetectorAndar = { Andar = "Hotel" }
+
 function DetectorAndar:Atualizar()
-    local dados = ArmazenamentoRep:FindFirstChild("GameData")
+    local dados = Armazenamento:FindFirstChild("GameData")
     if dados then
         local andar = dados:FindFirstChild("Floor")
         if andar and andar.Value then self.Andar = tostring(andar.Value) end
@@ -251,222 +587,30 @@ function DetectorAndar:Atualizar()
     end
     if self.Andar == "Hotel" then
         for _, obj in ipairs(EspacoTrabalho:GetDescendants()) do
-            if obj.Name == "Generator" or obj.Name == "Fuse" then self.Andar = "Minas" break end
-            if obj.Name == "Teller" or obj.Name == "Honcho" then self.Andar = "Arquivos" break end
+            if obj.Name == "Generator" or obj.Name == "Fuse" then
+                self.Andar = "Minas"
+                break
+            end
         end
     end
 end
 
 --========================= DETECTOR DE PORTAS =========================
-local DetectorPortas = { Sala=0, PortaVerdadeira=nil }
+local DetectorPortas = { Sala = 0 }
 
-local function extrairNumero(texto) return tonumber(string.match(texto or "", "%-?%d+")) end
+local function pegarNumero(texto)
+    return tonumber(string.match(texto or "", "%-?%d+"))
+end
 
 function DetectorPortas:Atualizar()
     if not Opcoes.Portas then return end
     local portas = {}
     for _, obj in ipairs(EspacoTrabalho:GetDescendants()) do
-        if (obj:IsA("Model") or obj:IsA("BasePart")) and
-           (string.find(obj.Name,"Door") or string.find(obj.Name,"door") or
-            string.find(obj.Name,"Exit") or string.find(obj.Name,"Porta")) and
-           not string.find(obj.Name,"Frame") then
-            local num = extrairNumero(obj.Name)
-            if num then table.insert(portas, {obj=obj, num=num}) end
-        end
-    end
-    if #portas==0 then return end
-
-    table.sort(portas, function(a,b) return a.num<b.num end)
-    local menor = portas[1].num
-    if menor ~= self.Sala then
-        self.Sala = menor
-    end
-
-    local esperada = self.Sala + 1
-    if DetectorAndar.Andar == "PortaFundos" then esperada = self.Sala - 1 end
-
-    for _, porta in ipairs(portas) do
-        if porta.num == esperada and Opcoes.PortaVerdadeira then
-            GerDestaque:Aplicar(porta.obj, C.Vermelho, "🔴 PORTA VERDADEIRA #"..porta.num)
-        elseif Opcoes.PortaFalsa and porta.num ~= self.Sala
-           and math.abs(porta.num - esperada) <= 5 and porta.num ~= esperada then
-            GerDestaque:Aplicar(porta.obj, C.Amarelo, "🟡 PORTA FALSA #"..porta.num)
-        elseif Opcoes.PortasTrancadas then
-            local trancada = porta.obj:GetAttribute("Locked") or
-                (porta.obj:FindFirstChild("Locked") and porta.obj.Locked.Value) or false
-            if trancada then
-                GerDestaque:Aplicar(porta.obj, C.Laranja, "🔒 TRANCADA #"..porta.num)
-            end
-        end
-    end
-end
-
---========================= DETECTOR DE ENTIDADES =========================
-local DetectorEntidades = {}
-DetectorEntidades.Lista = {
-    {n="Rush",     ids={"RushMoving","Rush","BackdoorRush"}, c=C.Vermelho},
-    {n="Ambush",   ids={"AmbushMoving","Ambush"},             c=C.Laranja},
-    {n="Screech",  ids={"Screech"},                           c=C.Branco},
-    {n="Eyes",     ids={"Eyes"},                              c=C.Amarelo},
-    {n="Seek",     ids={"SeekMoving","Seek","SeekBlob"},      c=C.RoxoEnt},
-    {n="Figure",   ids={"FigureRig","Figure"},                c=C.Branco},
-    {n="Hide",     ids={"Hide"},                              c=C.RoxoClaro},
-    {n="Dupe",     ids={"Dupe"},                              c=C.Amarelo},
-    {n="Snare",    ids={"Snare"},                             c=C.Laranja},
-    {n="Dread",    ids={"Dread"},                             c=C.Vermelho},
-    {n="Halt",     ids={"Halt"},                              c=C.Ciano},
-    {n="Giggle",   ids={"Giggle"},                            c=C.Laranja},
-    {n="Gloombats",ids={"Gloombats","Gloombat"},              c=C.RoxoEnt},
-    {n="Grumble",  ids={"Grumble"},                           c=C.Vermelho},
-    {n="QueenGrumble",ids={"QueenGrumble"},                   c=C.Vermelho},
-    {n="Honcho",   ids={"Honcho"},                            c=C.RoxoEnt},
-    {n="Drone",    ids={"Drone","Drones"},                    c=C.RoxoClaro},
-    {n="Teller",   ids={"Teller"},                            c=C.Ciano},
-    {n="Alma",     ids={"Alma"},                              c=C.RoxoEnt},
-    {n="Ransom",   ids={"Ransom","monster2"},                 c=C.Vermelho},
-    {n="Bash",     ids={"Bash","A60"},                        c=C.Laranja},
-    {n="Scribbles",ids={"Scribbles","Scribble"},              c=C.Amarelo},
-    {n="ForgetMeNot",ids={"Forget-Me-Not","ForgetMeNot"},     c=C.Azul},
-    {n="Portrait", ids={"Portrait"},                          c=C.RoxoClaro},
-    {n="Fih",      ids={"Fih"},                               c=C.Ciano},
-    {n="Noise",    ids={"Noise"},                             c=C.Branco},
-    {n="Haste",    ids={"Haste"},                             c=C.Ciano},
-    {n="Blitz",    ids={"Blitz"},                             c=C.Verde},
-    {n="Creak",    ids={"Creak"},                             c=C.RoxoEnt},
-    {n="Meld",     ids={"Meld"},                              c=C.Laranja},
-    {n="Stem",     ids={"Stem"},                              c=C.Azul},
-    {n="Cobbler",  ids={"Cobbler"},                           c=C.Branco},
-}
-DetectorEntidades.Ativas = {}
-
-function DetectorEntidades:Atualizar()
-    if not Opcoes.Entidades then return end
-    local encontradas = {}
-    for _, obj in ipairs(EspacoTrabalho:GetDescendants()) do
-        if obj.Name and obj.Name ~= "" then
-            for _, ent in ipairs(self.Lista) do
-                for _, id in ipairs(ent.ids) do
-                    if obj.Name == id and not encontradas[ent.n] then
-                        encontradas[ent.n] = {obj=obj, dados=ent} break
-                    end
-                end
-            end
-        end
-    end
-    for nome, info in pairs(encontradas) do
-        if not self.Ativas[nome] then
-            self.Ativas[nome] = info
-            GerDestaque:Aplicar(info.obj, info.dados.c, "👾 "..nome)
-            GerNotificacao:Enviar("👾 "..nome, info.dados.c)
-            GerSom:Tocar()
-            if UI.PainelLogs then UI:Registrar("ENTIDADE "..nome, info.dados.c) end
-        end
-    end
-    for nome, info in pairs(self.Ativas) do
-        if not encontradas[nome] then
-            GerDestaque:Limpar(info.obj)
-            self.Ativas[nome] = nil
-        end
-    end
-end
-
---========================= DETECTOR DE ITENS (ESP) =========================
-local DetectorItens = {}
-DetectorItens.Lista = {
-    {n="Chave",         ids={"Key","KeyDoor","RoomKey"},              c=C.Azul},
-    {n="Chave Mestra",  ids={"SkeletonKey","Skeleton_Key"},           c=C.RoxoEnt},
-    {n="Gazuа",         ids={"Lockpick","LockPick"},                  c=C.Ciano},
-    {n="Crucifixo",     ids={"Crucifix"},                             c=C.Branco},
-    {n="Bandagem",      ids={"Bandage","BandagePack"},                c=C.Verde},
-    {n="Vitaminas",     ids={"Vitamins"},                             c=C.Verde},
-    {n="Lanterna",      ids={"Flashlight"},                           c=C.Amarelo},
-    {n="Lanterna Chacoalhante", ids={"Shakelight"},                   c=C.Amarelo},
-    {n="Tesoura",       ids={"Shears"},                               c=C.Rosa},
-    {n="Vela",          ids={"Candle","CandleItem"},                  c=C.Amarelo},
-    {n="Isqueiro",      ids={"Lighter"},                              c=C.Laranja},
-    {n="Bússola",       ids={"Compass"},                              c=C.Ciano},
-    {n="Ouro",          ids={"Gold","GoldCoin"},                      c=C.Amarelo},
-}
-
-function DetectorItens:Atualizar()
-    if not Opcoes.Itens then return end
-    for _, obj in ipairs(EspacoTrabalho:GetDescendants()) do
-        if not obj.Name or obj.Name == "" then continue end
-        for _, item in ipairs(self.Lista) do
-            for _, id in ipairs(item.ids) do
-                if obj.Name == id then
-                    GerDestaque:Aplicar(obj, item.c, "🔵 "..item.n)
-                    break
-                end
-            end
-        end
-    end
-end
-
---========================= DETECTOR DE OBJETIVOS =========================
-local DetectorObjetivos = {}
-DetectorObjetivos.Lista = {
-    {n="Esconderijo", ids={"Wardrobe","Closet","Locker","Bed"},   c=C.Verde},
-    {n="Gerador",     ids={"Generator","Fuse"},                   c=C.Verde},
-    {n="Alavanca",    ids={"Lever","RailLever","AnchorLever","TimeLever","TimerLever"}, c=C.Verde},
-    {n="Elevador",    ids={"Elevator"},                           c=C.Ciano},
-    {n="Terminal",    ids={"Terminal","Computer"},                c=C.Ciano},
-    {n="Carrinho",    ids={"Minecart"},                           c=C.Azul},
-    {n="Âncora",      ids={"Anchor"},                             c=C.Ciano},
-    {n="Bebedouro",   ids={"WaterCooler"},                        c=C.Azul},
-}
-
-function DetectorObjetivos:Atualizar()
-    if not Opcoes.Objetivos and not Opcoes.Esconderijos
-       and not Opcoes.Geradores and not Opcoes.Alavancas then return end
-    for _, obj in ipairs(EspacoTrabalho:GetDescendants()) do
-        if not obj.Name or obj.Name == "" then continue end
-        for _, alvo in ipairs(self.Lista) do
-            for _, id in ipairs(alvo.ids) do
-                if obj.Name == id then
-                    local permitido = Opcoes.Objetivos
-                        or (alvo.n=="Esconderijo" and Opcoes.Esconderijos)
-                        or (alvo.n=="Gerador" and Opcoes.Geradores)
-                        or (alvo.n=="Alavanca" and Opcoes.Alavancas)
-                    if permitido then
-                        GerDestaque:Aplicar(obj, alvo.c, "🟢 "..alvo.n)
-                    end
-                    break
-                end
-            end
-        end
-    end
-end
-
---========================= DETECTOR DE ARMADILHAS =========================
-local DetectorArmadilhas = {}
-function DetectorArmadilhas:Atualizar()
-    if not Opcoes.Armadilhas then return end
-    for _, obj in ipairs(EspacoTrabalho:GetDescendants()) do
-        if obj.Name == "Snare" or obj.Name == "Trap" or obj.Name == "MothEgg" then
-            GerDestaque:Aplicar(obj, C.Laranja, "⚠ ARMADILHA")
-        end
-    end
-end
-
---========================= MINAS / ARQUIVOS / PORTA DOS FUNDOS =========================
-local DetectorMinas = {}
-function DetectorMinas:Atualizar()
-    if not Opcoes.Minas then return end
-    if DetectorAndar.Andar ~= "Minas" then return end
-    for _, obj in ipairs(EspacoTrabalho:GetDescendants()) do
-        local n = obj.Name
-        if n == "Fuse" then GerDestaque:Aplicar(obj, C.Azul, "🔵 FUSÍVEL")
-        elseif n == "Generator" then GerDestaque:Aplicar(obj, C.Verde, "⚙ GERADOR")
-        elseif n == "RailLever" then GerDestaque:Aplicar(obj, C.Verde, "🎚 TRILHO")
-        elseif n == "AnchorLever" then GerDestaque:Aplicar(obj, C.Verde, "⚓ ÂNCORA")
-        elseif n == "Minecart" then GerDestaque:Aplicar(obj, C.Azul, "🛒 CARRINHO")
-        elseif n == "Anchor" then GerDestaque:Aplicar(obj, C.Ciano, "⚓ ÂNCORA")
-        end
-    end
-end
-
-local DetectorArquivos = {}
-function DetectorArquivos:Atualizar()
-    if not Opcoes.Arquivos then return end
-    if DetectorAndar.Andar 
+        if (obj:IsA("Model") or obj:IsA("BasePart")) then
+            local nome = obj.Name
+            if (string.find(nome, "Door") or string.find(nome, "door") or
+                string.find(nome, "Exit") or string.find(nome, "Porta"))
+               and not string.find(nome, "Frame") then
+                local num = pegarNumero(nome)
+                if num then
+                    table.insert(portas, {obj = obj, 
